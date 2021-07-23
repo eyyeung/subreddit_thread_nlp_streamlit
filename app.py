@@ -18,9 +18,9 @@ st.title("Subreddit Threads Dashboard")
 def get_data_dataframe():
     custom_date_parser = lambda x: datetime.strptime(x, "%Y-%m")
 
-    df = pd.read_csv('../tag_count_monthly.csv', index_col = ['year_month'], parse_dates=['year_month'], date_parser=custom_date_parser)
+    df = pd.read_csv('./Data/tag_count_monthly.csv', index_col = ['year_month'], parse_dates=['year_month'], date_parser=custom_date_parser)
 
-    df_full_data = pd.read_csv('../tagged_threads.csv', index_col = 0)
+    df_full_data = pd.read_csv('./Data/tagged_threads.csv', index_col = 0)
     df_full_data = df_full_data.sort_values(by=['score'],ascending=False)
     df_full_data = df_full_data[['submission_title','created','tag','score','comments','url']]
     return df, df_full_data
