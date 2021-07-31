@@ -1,5 +1,4 @@
 import streamlit as st
-import numpy as np
 import pandas as pd
 
 import plotly.express as px
@@ -14,18 +13,21 @@ import requests
 
 st.title("Subreddit Threads Dashboard")
 
-@st.cache(suppress_st_warning=True)
+@st.cache(suppress_st_warning=True, allow_output_mutation=True)
 def get_data_dataframe():
-    custom_date_parser = lambda x: datetime.strptime(x, "%Y-%m")
-
-    df = pd.read_csv('./Data/tag_count_monthly.csv', index_col = ['year_month'], parse_dates=['year_month'], date_parser=custom_date_parser)
-
-    df_full_data = pd.read_csv('./Data/tagged_threads.csv', index_col = 0)
+    df_full_data = pd.read_csv('./Data/tagged_threads.csv')
     df_full_data = df_full_data.sort_values(by=['score'],ascending=False)
-    df_full_data = df_full_data[['submission_title','created','tag','score','comments','url']]
-    return df, df_full_data
+    return df_full_data
 
-df, df_full_data = get_data_dataframe()
+@st.cache(suppress_st_warning=True, allow_output_mutation=True)
+def make_group_by_monthly(df):
+    df['created'] = pd.to_datetime(df['created'])
+    df['year_month'] = df['created'].dt.strftime('%Y-%m')
+    tag_count_monthly = df.groupby(['year_month','tag']).submission_id.count().reset_index()
+    return tag_count_monthly
+
+df_full_data = get_data_dataframe()
+df_monthly = make_group_by_monthly(df_full_data)
 
 # make API call to reddit
 
@@ -89,11 +91,11 @@ result_df = result_df[['subreddit','created_utc','title','selftext','num_comment
 result_df['created_utc'] = result_df['created_utc'].astype('datetime64[s]')
 st.dataframe(result_df)
 
-#st.sidebar.checkbox("Show Analysis by Tag", True, key='1')
-select = st.sidebar.selectbox('Select a Tag',df['tag'].unique())
+# show selection choice to let user pick which tag they wish to filter out
+select = st.sidebar.selectbox('Select a Tag',df_monthly['tag'].unique())
 
 #get the state selected in the selectbox
-tag_data = df[df['tag'] == select]
+tag_data = df_monthly[df_monthly['tag'] == select]
 tag_table = df_full_data[df_full_data['tag'] == select]
 tag_table = tag_table.sort_values(by=['score'],ascending=False)
 
@@ -111,7 +113,7 @@ if st.sidebar.checkbox("Show Analysis by Tag", True, key='1'):
     st.dataframe(tag_table)
 else:
     st.markdown("## **Monthly Threads**")
-    fig = px.line(data_frame= df, x=df.index, y='submission_id',color='tag')
+    fig = px.line(data_frame= df_monthly, x=df_monthly.index, y='submission_id',color='tag')
     fig.update_layout(yaxis_title="thread counts")
     st.plotly_chart(fig)
 
@@ -120,4 +122,5 @@ else:
     st.image(wordcloud.to_array())
 
     st.markdown("## **Threads**")
-    st.dataframe(df_full_data)
+    df_full_data_display = df_full_data[['submission_title','created','tag','score','comments','url']]
+    st.dataframe(df_full_data_display)
